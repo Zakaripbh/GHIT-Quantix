@@ -1,7 +1,9 @@
-"""Download SOL/USDT 5-minute candles from Binance public data (no API key needed).
+"""Download candles from Binance public data (no API key needed).
 
-Run:  python -m src.data.download_binance --days 180
-Saves to data/SOLUSDT_5m.csv
+Examples:
+  python -m src.data.download_binance --symbol SOLUSDT --interval 5m --days 730
+  python -m src.data.download_binance --symbol BTCUSDT --interval 4h --years 5
+Saves to data/<SYMBOL>_<interval>.csv
 """
 import argparse
 import os
@@ -14,7 +16,8 @@ BASE_URLS = [
     "https://api.binance.com",
     "https://data-api.binance.vision",  # backup address
 ]
-FIVE_MIN_MS = 5 * 60 * 1000
+INTERVAL_MS = {"5m": 5 * 60_000, "15m": 15 * 60_000, "1h": 60 * 60_000,
+               "4h": 4 * 60 * 60_000, "1d": 24 * 60 * 60_000}
 COLUMNS = ["timestamp", "open", "high", "low", "close", "volume"]
 
 
@@ -38,18 +41,22 @@ def fetch_batch(symbol, interval, start_ms, limit=1000):
     raise RuntimeError(f"Could not download from Binance. Last error: {last_error}")
 
 
-def download(symbol="SOLUSDT", interval="5m", days=180, out_path="data/SOLUSDT_5m.csv"):
+def download(symbol="SOLUSDT", interval="5m", days=180, out_path=None):
+    if interval not in INTERVAL_MS:
+        raise ValueError(f"interval must be one of {list(INTERVAL_MS)}")
+    out_path = out_path or f"data/{symbol}_{interval}.csv"
+    step = INTERVAL_MS[interval]
     end_ms = int(time.time() * 1000)
-    start_ms = end_ms - days * 24 * 60 * 60 * 1000
+    start_ms = end_ms - int(days * 24 * 60 * 60 * 1000)
     rows = []
-    print(f"Downloading {symbol} {interval} for the last {days} days...")
+    print(f"Downloading {symbol} {interval} for the last {days:g} days...")
 
     while start_ms < end_ms:
         batch = fetch_batch(symbol, interval, start_ms)
         if not batch:
             break
         rows.extend(batch)
-        start_ms = batch[-1][0] + FIVE_MIN_MS
+        start_ms = batch[-1][0] + step
         print(f"  {len(rows)} candles so far...", end="\r")
         time.sleep(0.2)  # be polite to the server
 
@@ -65,13 +72,18 @@ def download(symbol="SOLUSDT", interval="5m", days=180, out_path="data/SOLUSDT_5
 
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     df.to_csv(out_path, index=False)
-    print(f"\nSaved {len(df)} candles to {out_path}")
+    first = pd.to_datetime(df["timestamp"].iloc[0], unit="ms")
+    last = pd.to_datetime(df["timestamp"].iloc[-1], unit="ms")
+    print(f"\nSaved {len(df)} candles to {out_path}  ({first:%Y-%m-%d} to {last:%Y-%m-%d})")
 
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("--days", type=int, default=180)
     ap.add_argument("--symbol", default="SOLUSDT")
-    ap.add_argument("--out", default="data/SOLUSDT_5m.csv")
+    ap.add_argument("--interval", default="5m", choices=list(INTERVAL_MS))
+    ap.add_argument("--days", type=float, default=None)
+    ap.add_argument("--years", type=float, default=None)
+    ap.add_argument("--out", default=None)
     args = ap.parse_args()
-    download(symbol=args.symbol, days=args.days, out_path=args.out)
+    days = args.days if args.days else (args.years * 365 if args.years else 180)
+    download(symbol=args.symbol, interval=args.interval, days=days, out_path=args.out)

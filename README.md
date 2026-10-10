@@ -16,8 +16,18 @@ No data yet? Run `python -m src.run_backtest --synthetic` to test the pipeline o
 
 ## Run
 ```
-python -m src.run_backtest
+# download data (any coin, any candle size)
+python -m src.data.download_binance --symbol SOLUSDT --interval 4h --years 5
+python -m src.data.download_binance --symbol BTCUSDT --interval 4h --years 5
+python -m src.data.download_binance --symbol ETHUSDT --interval 4h --years 5
+
+# test one coin
+python -m src.run_backtest --symbol SOLUSDT --strategy breakout --timeframe 4h
+
+# test the same strategy on several coins
+python -m src.run_compare --strategy breakout --timeframe 4h --symbols SOLUSDT BTCUSDT ETHUSDT
 ```
+Each run compares the strategy (with fees), the strategy with zero fees, and buy-and-hold.
 Results (trades + equity curve + metrics) go to `results/`.
 
 ## Rules of this project

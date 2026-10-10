@@ -39,3 +39,18 @@ def make_synthetic(n: int = 20000, seed: int = 42) -> pd.DataFrame:
     idx = pd.date_range("2024-01-01", periods=n, freq="5min")
     return pd.DataFrame({"open": open_, "high": high, "low": low,
                          "close": close, "volume": vol}, index=idx)
+
+
+TIMEFRAMES = {"5m": (None, 5), "15m": ("15min", 15), "1h": ("1h", 60), "4h": ("4h", 240)}
+
+
+def resample_ohlcv(df: pd.DataFrame, timeframe: str) -> pd.DataFrame:
+    """Turn 5-minute candles into bigger candles (15m, 1h, 4h)."""
+    if timeframe not in TIMEFRAMES:
+        raise ValueError(f"timeframe must be one of {list(TIMEFRAMES)}")
+    rule, _ = TIMEFRAMES[timeframe]
+    if rule is None:
+        return df
+    out = df.resample(rule).agg({"open": "first", "high": "max", "low": "min",
+                                 "close": "last", "volume": "sum"})
+    return out.dropna()
