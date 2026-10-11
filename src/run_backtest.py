@@ -1,4 +1,4 @@
-"""Run: python -m src.run_backtest [--symbol SOLUSDT] [--strategy baseline|breakout]
+"""Run: python -m src.run_backtest [--symbol SOLUSDT] [--strategy baseline|breakout|ml]
                                    [--timeframe 5m|15m|1h|4h] [--synthetic]
 
 For each part of the data (in-sample / out-of-sample) it reports:
@@ -11,13 +11,14 @@ data/<SYMBOL>_5m.csv and builds bigger candles from it.
 """
 import argparse, json, os
 from src.data.quantix_data import load_csv, make_synthetic, resample_ohlcv, TIMEFRAMES
-from src.strategy import baseline, breakout
+from src.strategy import baseline, breakout, ml_model
 from src.backtest.engine import run
 from src.backtest.metrics import compute, buy_and_hold
 
 # name -> (signal function, ATR stop multiplier)
 STRATEGIES = {"baseline": (baseline.generate_signals, 2.0),
-              "breakout": (breakout.generate_signals, 3.0)}
+              "breakout": (breakout.generate_signals, 3.0),
+              "ml": (ml_model.generate_signals, 3.0)}
 
 
 def load_data(symbol, timeframe, synthetic=False):
@@ -34,9 +35,10 @@ def load_data(symbol, timeframe, synthetic=False):
         f"--symbol {symbol} --interval {timeframe} --years 5")
 
 
-def evaluate(df, strategy, timeframe, train_frac=0.7, params=None, with_no_fees=True):
+def evaluate(df, strategy, timeframe, train_frac=0.7, params=None, with_no_fees=True,
+             signals_ready=False):
     signal_fn, atr_mult = STRATEGIES[strategy]
-    df = signal_fn(df, **(params or {})).dropna()
+    df = (df if signals_ready else signal_fn(df, **(params or {}))).dropna()
     bars_per_year = 365 * 24 * 60 // TIMEFRAMES[timeframe][1]
     cut = int(len(df) * train_frac)
     report = {"strategy_name": strategy, "timeframe": timeframe, "candles": len(df),

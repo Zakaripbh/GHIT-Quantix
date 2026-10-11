@@ -30,6 +30,12 @@ python -m src.run_compare --strategy breakout --timeframe 4h --symbols SOLUSDT B
 # does it survive slightly different settings? (robustness)
 python -m src.run_robustness --timeframe 4h --symbols SOLUSDT BTCUSDT ETHUSDT
 
+# year-by-year: was it steady or lucky in one year?
+python -m src.run_yearly --strategy breakout --timeframe 4h --symbols SOLUSDT BTCUSDT ETHUSDT
+
+# AI model, walk-forward (needs scikit-learn)
+python -m src.run_ml --timeframe 4h --symbols SOLUSDT BTCUSDT ETHUSDT
+
 # download many coins at once
 python -m src.data.download_binance --symbols BNBUSDT XRPUSDT ADAUSDT --interval 4h --years 5
 ```
