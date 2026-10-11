@@ -1,48 +1,43 @@
-# GHIT-Quantix
-
-Backtesting engine for crypto strategies. First version = SOL/USDT, 5-minute candles, one baseline strategy.
-
-## Setup
-```
-pip install -r requirements.txt
-```
-
-## Data
-Put a CSV in `data/SOLUSDT_5m.csv` with columns:
-`timestamp, open, high, low, close, volume`
-(timestamp = milliseconds or a normal date string).
-
-No data yet? Run `python -m src.run_backtest --synthetic` to test the pipeline on fake data.
-
-## Run
-```
-# download data (any coin, any candle size)
-python -m src.data.download_binance --symbol SOLUSDT --interval 4h --years 5
-python -m src.data.download_binance --symbol BTCUSDT --interval 4h --years 5
-python -m src.data.download_binance --symbol ETHUSDT --interval 4h --years 5
-
-# test one coin
-python -m src.run_backtest --symbol SOLUSDT --strategy breakout --timeframe 4h
-
-# test the same strategy on several coins
-python -m src.run_compare --strategy breakout --timeframe 4h --symbols SOLUSDT BTCUSDT ETHUSDT
-
-# does it survive slightly different settings? (robustness)
-python -m src.run_robustness --timeframe 4h --symbols SOLUSDT BTCUSDT ETHUSDT
-
-# year-by-year: was it steady or lucky in one year?
-python -m src.run_yearly --strategy breakout --timeframe 4h --symbols SOLUSDT BTCUSDT ETHUSDT
-
-# AI model, walk-forward (needs scikit-learn)
-python -m src.run_ml --timeframe 4h --symbols SOLUSDT BTCUSDT ETHUSDT
-
-# download many coins at once
-python -m src.data.download_binance --symbols BNBUSDT XRPUSDT ADAUSDT --interval 4h --years 5
-```
-Each run compares the strategy (with fees), the strategy with zero fees, and buy-and-hold.
-Results (trades + equity curve + metrics) go to `results/`.
-
-## Rules of this project
-1. Backtest first. No live trading until results hold on data the strategy never saw.
-2. Fees and slippage are always included.
-3. Signals use candle N, trades happen at the open of candle N+1 (no look-ahead).
+GHIT-Quantix/
+├── .gitignore
+├── README.md
+├── requirements.txt              pandas, numpy, requests, scikit-learn
+│
+├── data/                         downloaded CSV files go here (kept off GitHub)
+│   └── .gitkeep
+│
+├── results/                      test outputs go here (kept off GitHub)
+│   └── .gitkeep
+│
+└── src/
+    ├── __init__.py
+    │
+    ├── data/
+    │   ├── __init__.py
+    │   ├── quantix_data.py       loads and cleans candles, builds 15m/1h/4h candles
+    │   └── download_binance.py   downloads any coin and candle size from Binance
+    │
+    ├── indicators/
+    │   ├── __init__.py
+    │   └── technical.py          EMA, RSI, ATR, rolling high and low
+    │
+    ├── strategy/
+    │   ├── __init__.py
+    │   ├── baseline.py           EMA + RSI rules
+    │   ├── breakout.py           breakout with a trend filter
+    │   └── ml_model.py           AI model with walk-forward training
+    │
+    ├── risk/
+    │   ├── __init__.py
+    │   └── position_sizing.py    risks 1% of the money per trade, ATR stop
+    │
+    ├── backtest/
+    │   ├── __init__.py
+    │   ├── engine.py             simulates trades with fees and slippage
+    │   └── metrics.py            return, max drop, Sharpe, win rate, buy-and-hold
+    │
+    ├── run_backtest.py           test one strategy on one coin
+    ├── run_compare.py            test one strategy on several coins
+    ├── run_robustness.py         test 27 nearby settings of the breakout strategy
+    ├── run_yearly.py             year-by-year breakdown
+    └── run_ml.py                 walk-forward test of the AI strategy
