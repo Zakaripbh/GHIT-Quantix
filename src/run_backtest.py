@@ -34,9 +34,9 @@ def load_data(symbol, timeframe, synthetic=False):
         f"--symbol {symbol} --interval {timeframe} --years 5")
 
 
-def evaluate(df, strategy, timeframe, train_frac=0.7):
+def evaluate(df, strategy, timeframe, train_frac=0.7, params=None, with_no_fees=True):
     signal_fn, atr_mult = STRATEGIES[strategy]
-    df = signal_fn(df).dropna()
+    df = signal_fn(df, **(params or {})).dropna()
     bars_per_year = 365 * 24 * 60 // TIMEFRAMES[timeframe][1]
     cut = int(len(df) * train_frac)
     report = {"strategy_name": strategy, "timeframe": timeframe, "candles": len(df),
@@ -44,12 +44,13 @@ def evaluate(df, strategy, timeframe, train_frac=0.7):
     raw = {}
     for name, part in [("in_sample", df.iloc[:cut]), ("out_of_sample", df.iloc[cut:])]:
         trades, equity = run(part, atr_mult=atr_mult)                                  # with fees
-        trades_free, equity_free = run(part, fee=0.0, slippage=0.0, atr_mult=atr_mult)  # no fees
         report[name] = {
             "strategy": compute(equity, trades, bars_per_year),
-            "strategy_no_fees": compute(equity_free, trades_free, bars_per_year),
             "buy_and_hold": buy_and_hold(part, equity, bars_per_year),
         }
+        if with_no_fees:
+            trades_free, equity_free = run(part, fee=0.0, slippage=0.0, atr_mult=atr_mult)  # no fees
+            report[name]["strategy_no_fees"] = compute(equity_free, trades_free, bars_per_year)
         raw[name] = (trades, equity)
     return report, raw
 
@@ -60,6 +61,8 @@ def print_report(report, title):
         print(f"\n--- {part} ---")
         print(f"{'':20}{'return %':>10}{'max drop %':>12}{'trades':>8}")
         for key in ("strategy", "strategy_no_fees", "buy_and_hold"):
+            if key not in report[part]:
+                continue
             m = report[part][key]
             print(f"{key:20}{m['total_return_pct']:>10}{m['max_drawdown_pct']:>12}{m.get('n_trades', '-'):>8}")
 

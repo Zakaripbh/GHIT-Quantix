@@ -26,6 +26,12 @@ python -m src.run_backtest --symbol SOLUSDT --strategy breakout --timeframe 4h
 
 # test the same strategy on several coins
 python -m src.run_compare --strategy breakout --timeframe 4h --symbols SOLUSDT BTCUSDT ETHUSDT
+
+# does it survive slightly different settings? (robustness)
+python -m src.run_robustness --timeframe 4h --symbols SOLUSDT BTCUSDT ETHUSDT
+
+# download many coins at once
+python -m src.data.download_binance --symbols BNBUSDT XRPUSDT ADAUSDT --interval 4h --years 5
 ```
 Each run compares the strategy (with fees), the strategy with zero fees, and buy-and-hold.
 Results (trades + equity curve + metrics) go to `results/`.

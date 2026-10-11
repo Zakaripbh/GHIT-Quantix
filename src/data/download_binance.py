@@ -80,10 +80,13 @@ def download(symbol="SOLUSDT", interval="5m", days=180, out_path=None):
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--symbol", default="SOLUSDT")
+    ap.add_argument("--symbols", nargs="+", default=None, help="download several coins in one go")
     ap.add_argument("--interval", default="5m", choices=list(INTERVAL_MS))
     ap.add_argument("--days", type=float, default=None)
     ap.add_argument("--years", type=float, default=None)
     ap.add_argument("--out", default=None)
     args = ap.parse_args()
     days = args.days if args.days else (args.years * 365 if args.years else 180)
-    download(symbol=args.symbol, interval=args.interval, days=days, out_path=args.out)
+    for sym in (args.symbols or [args.symbol]):
+        download(symbol=sym, interval=args.interval, days=days,
+                 out_path=args.out if not args.symbols else None)

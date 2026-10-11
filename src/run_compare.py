@@ -7,6 +7,11 @@ from src.data.quantix_data import TIMEFRAMES
 from src.run_backtest import STRATEGIES, load_data, evaluate
 
 
+def ratio(ret, drop):
+    """Return divided by the worst drop. Higher is better. Fair way to compare risk."""
+    return round(ret / abs(drop), 2) if drop else 0.0
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--strategy", default="breakout", choices=list(STRATEGIES))
@@ -16,24 +21,26 @@ def main():
     args = ap.parse_args()
 
     print(f"\nStrategy: {args.strategy}   Timeframe: {args.timeframe}")
-    print(f"{'coin':10}{'part':15}{'strategy %':>11}{'no fees %':>11}{'hold %':>9}"
-          f"{'drop %':>9}{'hold drop %':>13}{'trades':>8}")
+    print(f"{'coin':10}{'part':15}{'strategy %':>11}{'hold %':>9}{'drop %':>9}"
+          f"{'hold drop %':>13}{'ret/drop':>10}{'trades':>8}")
+    positive = total = 0
     for sym in args.symbols:
         try:
             df = load_data(sym, args.timeframe, args.synthetic)
-        except FileNotFoundError as e:
+        except FileNotFoundError:
             print(f"{sym:10}{'(no data file)':15}")
             continue
-        report, _ = evaluate(df, args.strategy, args.timeframe)
+        report, _ = evaluate(df, args.strategy, args.timeframe, with_no_fees=False)
         for part in ("in_sample", "out_of_sample"):
             r = report[part]
-            print(f"{sym:10}{part:15}{r['strategy']['total_return_pct']:>11}"
-                  f"{r['strategy_no_fees']['total_return_pct']:>11}"
-                  f"{r['buy_and_hold']['total_return_pct']:>9}"
-                  f"{r['strategy']['max_drawdown_pct']:>9}"
-                  f"{r['buy_and_hold']['max_drawdown_pct']:>13}"
-                  f"{r['strategy'].get('n_trades', 0):>8}")
+            ret, drop = r["strategy"]["total_return_pct"], r["strategy"]["max_drawdown_pct"]
+            total += 1
+            positive += ret > 0
+            print(f"{sym:10}{part:15}{ret:>11}{r['buy_and_hold']['total_return_pct']:>9}"
+                  f"{drop:>9}{r['buy_and_hold']['max_drawdown_pct']:>13}"
+                  f"{ratio(ret, drop):>10}{r['strategy'].get('n_trades', 0):>8}")
         print(f"{'':10}({report['from']} to {report['to']}, {report['candles']} candles)")
+    print(f"\nPositive parts: {positive} of {total}")
 
 
 if __name__ == "__main__":
